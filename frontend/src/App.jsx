@@ -1,164 +1,275 @@
-import { useState } from 'react';
+import { useState } from 'react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-function App() {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [resultUrl, setResultUrl] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const styles = {
+  page: {
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #020617 0%, #0c1a2e 50%, #020617 100%)',
+    padding: '2rem',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    color: 'white',
+  },
+  container: {
+    maxWidth: '1100px',
+    margin: '0 auto',
+  },
+  header: {
+    textAlign: 'center',
+    marginBottom: '3rem',
+  },
+  title: {
+    fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+    fontWeight: '900',
+    background: 'linear-gradient(90deg, #38bdf8, #34d399)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    margin: '0 0 1rem 0',
+  },
+  subtitle: {
+    color: '#94a3b8',
+    fontSize: '1.1rem',
+    maxWidth: '500px',
+    margin: '0 auto',
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))',
+    gap: '1.5rem',
+  },
+  card: {
+    background: 'rgba(255,255,255,0.04)',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '1.5rem',
+    padding: '2rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.25rem',
+  },
+  cardTitle: {
+    fontSize: '1.25rem',
+    fontWeight: '700',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    margin: 0,
+  },
+  badge: (color) => ({
+    padding: '0.25rem 0.6rem',
+    borderRadius: '0.5rem',
+    background: `${color}22`,
+    color: color,
+    fontSize: '0.85rem',
+    fontWeight: '700',
+  }),
+  dropZone: (hasFile) => ({
+    border: `2px dashed ${hasFile ? '#38bdf8' : '#334155'}`,
+    borderRadius: '1rem',
+    padding: '2rem',
+    textAlign: 'center',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    background: hasFile ? 'rgba(56,189,248,0.05)' : 'transparent',
+  }),
+  preview: {
+    maxHeight: '200px',
+    borderRadius: '0.75rem',
+    marginBottom: '0.75rem',
+    boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+  },
+  dropText: {
+    color: '#64748b',
+    fontSize: '0.95rem',
+    margin: '0.5rem 0 0 0',
+  },
+  button: (disabled) => ({
+    width: '100%',
+    padding: '1rem',
+    borderRadius: '0.875rem',
+    border: 'none',
+    fontWeight: '700',
+    fontSize: '1rem',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    background: disabled
+      ? '#1e293b'
+      : 'linear-gradient(90deg, #0284c7, #0ea5e9)',
+    color: disabled ? '#475569' : 'white',
+    transition: 'all 0.2s',
+    boxShadow: disabled ? 'none' : '0 4px 20px rgba(14,165,233,0.3)',
+  }),
+  error: {
+    padding: '0.875rem',
+    borderRadius: '0.75rem',
+    background: 'rgba(239,68,68,0.1)',
+    border: '1px solid rgba(239,68,68,0.2)',
+    color: '#f87171',
+    fontSize: '0.9rem',
+  },
+  resultBox: {
+    flex: 1,
+    minHeight: '280px',
+    border: '1px solid rgba(255,255,255,0.06)',
+    borderRadius: '1rem',
+    background: 'rgba(0,0,0,0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  resultImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
+  },
+  emptyIcon: {
+    textAlign: 'center',
+  },
+  emptyText: {
+    color: '#475569',
+    marginTop: '0.75rem',
+    fontSize: '0.9rem',
+  },
+  downloadBtn: {
+    display: 'block',
+    textAlign: 'center',
+    padding: '0.75rem',
+    borderRadius: '0.75rem',
+    background: '#1e293b',
+    color: '#cbd5e1',
+    textDecoration: 'none',
+    fontWeight: '600',
+    fontSize: '0.9rem',
+    transition: 'background 0.2s',
+  },
+  footer: {
+    textAlign: 'center',
+    marginTop: '3rem',
+    color: '#334155',
+    fontSize: '0.85rem',
+  },
+}
+
+export default function App() {
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [resultUrl, setResultUrl] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files[0]
     if (file) {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setResultUrl(null);
-      setError(null);
+      setSelectedFile(file)
+      setPreviewUrl(URL.createObjectURL(file))
+      setResultUrl(null)
+      setError(null)
     }
-  };
+  }
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
-
-    setLoading(true);
-    setError(null);
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
+    if (!selectedFile) return
+    setLoading(true)
+    setError(null)
+    const formData = new FormData()
+    formData.append('file', selectedFile)
     try {
-      const response = await fetch(`${API_URL}/predict`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Segmentation failed');
-
-      const blob = await response.blob();
-      setResultUrl(URL.createObjectURL(blob));
+      const response = await fetch(`${API_URL}/predict`, { method: 'POST', body: formData })
+      if (!response.ok) throw new Error(`Server error: ${response.status}`)
+      const blob = await response.blob()
+      setResultUrl(URL.createObjectURL(blob))
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8 selection:bg-primary-500/30">
-      <div className="max-w-6xl mx-auto">
-        <header className="mb-12 text-center">
-          <h1 className="text-5xl md:text-6xl font-black mb-4 bg-gradient-to-r from-primary-400 to-emerald-400 bg-clip-text text-transparent">
-            Semantic Segmentation
-          </h1>
-          <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-            Upload an image to identify objects using our advanced DINOv2-powered segmentation engine.
+    <div style={styles.page}>
+      <div style={styles.container}>
+        <header style={styles.header}>
+          <h1 style={styles.title}>Semantic Segmentation</h1>
+          <p style={styles.subtitle}>
+            Upload an image to identify and segment objects using our DINOv2-powered AI engine.
           </p>
         </header>
 
-        <main className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          {/* Upload Section */}
-          <section className="glass rounded-3xl p-8 flex flex-col gap-6">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <span className="p-2 rounded-lg bg-primary-500/20 text-primary-400">01</span>
+        <div style={styles.grid}>
+          {/* Upload Card */}
+          <div style={styles.card}>
+            <h2 style={styles.cardTitle}>
+              <span style={styles.badge('#38bdf8')}>01</span>
               Upload Image
             </h2>
 
-            <div
-              className={`border-2 border-dashed rounded-2xl p-8 transition-all text-center ${previewUrl ? 'border-primary-500/50 bg-primary-500/5' : 'border-slate-700 hover:border-slate-500 hover:bg-white/5'
-                }`}
-            >
+            <label htmlFor="file-upload" style={styles.dropZone(!!previewUrl)}>
               <input
                 type="file"
-                onChange={handleFileChange}
-                className="hidden"
                 id="file-upload"
+                onChange={handleFileChange}
                 accept="image/*"
+                style={{ display: 'none' }}
               />
-              <label htmlFor="file-upload" className="cursor-pointer">
-                {previewUrl ? (
-                  <img src={previewUrl} alt="Preview" className="max-h-64 mx-auto rounded-lg shadow-2xl mb-4" />
-                ) : (
-                  <div className="py-12">
-                    <svg className="w-16 h-16 mx-auto mb-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-slate-400">Click or drag image to upload</p>
-                  </div>
-                )}
-                <p className="text-sm text-slate-500 mt-2">Supports JPG, PNG, WEBP</p>
-              </label>
-            </div>
+              {previewUrl ? (
+                <>
+                  <img src={previewUrl} alt="Preview" style={styles.preview} />
+                  <p style={styles.dropText}>Click to change image</p>
+                </>
+              ) : (
+                <>
+                  <svg width="48" height="48" fill="none" stroke="#475569" viewBox="0 0 24 24" style={{ margin: '0 auto 0.75rem' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p style={styles.dropText}>Click to upload an image</p>
+                  <p style={{ ...styles.dropText, fontSize: '0.8rem', marginTop: '0.25rem' }}>JPG, PNG, WEBP supported</p>
+                </>
+              )}
+            </label>
 
             <button
               onClick={handleUpload}
               disabled={!selectedFile || loading}
-              className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${!selectedFile || loading
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  : 'bg-primary-600 hover:bg-primary-500 hover:shadow-[0_0_20px_rgba(14,165,233,0.3)]'
-                }`}
+              style={styles.button(!selectedFile || loading)}
             >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Processing...
-                </span>
-              ) : 'Run Segmentation'}
+              {loading ? '⏳ Processing...' : '▶ Run Segmentation'}
             </button>
 
-            {error && (
-              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                Error: {error}
-              </div>
-            )}
-          </section>
+            {error && <div style={styles.error}>⚠️ {error}</div>}
+          </div>
 
-          {/* Result Section */}
-          <section className="glass rounded-3xl p-8 flex flex-col gap-6 min-h-[500px]">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <span className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">02</span>
+          {/* Result Card */}
+          <div style={{ ...styles.card, minHeight: '480px' }}>
+            <h2 style={styles.cardTitle}>
+              <span style={styles.badge('#34d399')}>02</span>
               Segmentation Result
             </h2>
 
-            <div className="flex-1 flex items-center justify-center border border-slate-700/50 rounded-2xl bg-black/20 overflow-hidden min-h-[300px]">
+            <div style={styles.resultBox}>
               {resultUrl ? (
-                <img src={resultUrl} alt="Result" className="w-full h-full object-contain shadow-2xl animate-in fade-in zoom-in duration-500" />
+                <img src={resultUrl} alt="Segmentation result" style={styles.resultImg} />
               ) : (
-                <div className="text-center p-12">
-                  <div className="w-20 h-20 mx-auto mb-6 bg-slate-800/50 rounded-full flex items-center justify-center text-slate-600">
-                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
-                  <p className="text-slate-500 max-w-[200px] mx-auto">Result will appear here after processing</p>
+                <div style={styles.emptyIcon}>
+                  <svg width="48" height="48" fill="none" stroke="#334155" viewBox="0 0 24 24" style={{ margin: '0 auto' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <p style={styles.emptyText}>Result appears here</p>
                 </div>
               )}
             </div>
 
             {resultUrl && (
-              <div className="flex gap-4">
-                <a
-                  href={resultUrl}
-                  download="segmented-image.png"
-                  className="flex-1 text-center py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-medium transition-colors"
-                >
-                  Download Result
-                </a>
-              </div>
+              <a href={resultUrl} download="segmented.png" style={styles.downloadBtn}>
+                ⬇ Download Result
+              </a>
             )}
-          </section>
-        </main>
+          </div>
+        </div>
 
-        <footer className="mt-16 text-center text-slate-500 text-sm">
-          <p>© 2026 Semantic Segmentation Hack Edition</p>
+        <footer style={styles.footer}>
+          <p>Semantic Segmentation · Hackathon 2026</p>
         </footer>
       </div>
     </div>
-  );
+  )
 }
-
-export default App;
