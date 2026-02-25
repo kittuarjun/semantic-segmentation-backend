@@ -1,6 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-
 from fastapi.responses import StreamingResponse
 import torch
 import torch.nn as nn
@@ -10,6 +9,7 @@ from PIL import Image
 import numpy as np
 import io
 import os
+import gc
 
 app = FastAPI()
 
@@ -54,31 +54,35 @@ class SegmentationHeadConvNeXt(nn.Module):
         return self.classifier(x)
 
 # ==============================
-# Load Backbone
+# Lazy Model Loading
 # ==============================
 
-print("Loading DINOv2 backbone...")
-backbone = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14")
-backbone.eval()
-backbone.to(device)
+backbone = None
+classifier = None
 
-# ==============================
-# Load Segmentation Head
-# ==============================
+def load_models():
+    global backbone, classifier
+    if backbone is not None:
+        return
 
-classifier = SegmentationHeadConvNeXt(
-    in_channels=384,
-    out_channels=10,
-    tokenW=34,
-    tokenH=19
-).to(device)
+    print("Loading DINOv2 backbone...")
+    backbone = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14")
+    backbone.eval()
+    backbone.to(device)
 
-classifier.load_state_dict(
-    torch.load("segmentation_head.pth", map_location=device)
-)
-classifier.eval()
+    classifier = SegmentationHeadConvNeXt(
+        in_channels=384,
+        out_channels=10,
+        tokenW=34,
+        tokenH=19
+    ).to(device)
 
-print("Model loaded successfully!")
+    classifier.load_state_dict(
+        torch.load("segmentation_head.pth", map_location=device)
+    )
+    classifier.eval()
+    gc.collect()
+    print("Models loaded successfully!")
 
 # ==============================
 # Image Transform
@@ -103,6 +107,8 @@ def home():
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
+    load_models()
+
     image = Image.open(file.file).convert("RGB")
     input_tensor = transform(image).unsqueeze(0).to(device)
 
